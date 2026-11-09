@@ -197,7 +197,12 @@ Cada coeficiente expresa el cambio esperado en la respuesta por una unidad adici
 
 **Ejemplo:** una alcaldía desea estudiar el tiempo de resolución de trámites según número de documentos, carga de trabajo, complejidad y experiencia del funcionario:
 
-$$ Tiempo_i=\beta_0+\beta_1Documentos_i+ \beta_2Carga_i+\beta_3Complejidad_i+ \beta_4Experiencia_i+\varepsilon_i $$
+$$
+\small
+Tiempo_i = \beta_0 + \beta_1 Documentos_i
++ \beta_2 Carga_i + \beta_3 Complejidad_i
++ \beta_4 E_i
+$$
 
 La interpretación requiere considerar unidades, categorías de referencia, confusión y multicolinealidad.
 

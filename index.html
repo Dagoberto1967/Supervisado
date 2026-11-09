@@ -357,7 +357,12 @@ Importante
 <p><span class="math display"> Y_i=\beta_0+\beta_1X_{i1}+\cdots+\beta_pX_{ip}+\varepsilon_i </span></p>
 <p>Cada coeficiente expresa el cambio esperado en la respuesta por una unidad adicional del predictor correspondiente, manteniendo constantes los demás predictores.</p>
 <p><strong>Ejemplo:</strong> una alcaldía desea estudiar el tiempo de resolución de trámites según número de documentos, carga de trabajo, complejidad y experiencia del funcionario:</p>
-<p><span class="math display"> Tiempo_i=\beta_0+\beta_1Documentos_i+ \beta_2Carga_i+\beta_3Complejidad_i+ \beta_4Experiencia_i+\varepsilon_i </span></p>
+<p><span class="math display">
+\small
+Tiempo_i = \beta_0 + \beta_1 Documentos_i
++ \beta_2 Carga_i + \beta_3 Complejidad_i
++ \beta_4 E_i
+</span></p>
 <p>La interpretación requiere considerar unidades, categorías de referencia, confusión y multicolinealidad.</p>
 <p><strong>Laboratorio en R: GLM gaussiano múltiple</strong></p>
 <div class="cell" data-layout-align="center">

@@ -143,11 +143,11 @@ Un GLM contiene tres componentes:
 
 El predictor lineal es:
 
-$$ \eta\_i=\beta\_0+\beta*1x*{i1}+\cdots+\beta*px*{ip} $$
+$$ \eta_i=\beta_0+\beta_1x_{i1}+\cdots+\beta_px_{ip} $$
 
 Y la función de enlace establece:
 
-$$ g(\mu\_i)=\eta\_i,\qquad \mu\_i=E(Y_i\mid X_i) $$
+$$ g(\mu_i)=\eta_i,\qquad \mu_i=E(Y_i\mid X_i) $$
 
 **Familias y enlaces frecuentes**
 
@@ -167,7 +167,7 @@ $$ Y_i \sim N(\mu_i,\sigma^2),
 \qquad
 \mu_i = \beta_0 + \sum_{j=1}^{p}\beta_j X_{ij} $$
 
-### GLM de Poisson
+**GLM de Poisson**
 
 Para conteos no negativos puede considerarse:
 

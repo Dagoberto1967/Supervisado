@@ -298,9 +298,9 @@ Importante
 <li><strong>Función de enlace:</strong> relaciona la media de la respuesta con el predictor lineal.</li>
 </ol>
 <p>El predictor lineal es:</p>
-<p><span class="math display"> \eta\_i=\beta\_0+\beta*1x*{i1}+\cdots+\beta*px*{ip} </span></p>
+<p><span class="math display"> \eta_i=\beta_0+\beta_1x_{i1}+\cdots+\beta_px_{ip} </span></p>
 <p>Y la función de enlace establece:</p>
-<p><span class="math display"> g(\mu\_i)=\eta\_i,\qquad \mu\_i=E(Y_i\mid X_i) </span></p>
+<p><span class="math display"> g(\mu_i)=\eta_i,\qquad \mu_i=E(Y_i\mid X_i) </span></p>
 <p><strong>Familias y enlaces frecuentes</strong></p>
 <table class="table">
 <thead>
@@ -338,8 +338,7 @@ Importante
 <p><span class="math display"> Y_i \sim N(\mu_i,\sigma^2),
 \qquad
 \mu_i = \beta_0 + \sum_{j=1}^{p}\beta_j X_{ij} </span></p>
-<section id="glm-de-poisson" class="level3" data-number="3.0.1">
-<h3 data-number="3.0.1" class="anchored" data-anchor-id="glm-de-poisson"><span class="header-section-number">3.0.1</span> GLM de Poisson</h3>
+<p><strong>GLM de Poisson</strong></p>
 <p>Para conteos no negativos puede considerarse:</p>
 <p><span class="math display"> Y_i\mid X_i\sim Poisson(\mu_i) </span></p>
 <p><span class="math display"> \log(\mu_i)
@@ -351,7 +350,6 @@ Importante
 \beta_0 + \sum_{j=1}^{p}\beta_j X_{ij}
 \right)</span></p>
 <p>La exponencial de un coeficiente representa una razón de medias esperadas asociada con un incremento unitario del predictor, manteniendo constantes los demás, bajo el modelo. Poisson supone igualdad entre media y varianza condicional. Si existe sobredispersión, se deben considerar alternativas como cuasi-Poisson o binomial negativa. Para diferentes tiempos de exposición puede ser necesario un término <code>offset</code>.</p>
-</section>
 </section>
 <section id="regresión-múltiple-con-glm" class="level1" data-number="4">
 <h1 data-number="4"><span class="header-section-number">4</span> .Regresión múltiple con GLM</h1>

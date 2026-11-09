@@ -1,0 +1,1297 @@
+---
+title: "Modelos supervisados y métodos de aprendizaje no supervisado en R"
+subtitle: "Unidad 2. Modelación estadística, aprendizaje automático y reducción de dimensionalidad"
+author: 
+  - name: Dagoberto Salgado Horta
+    affiliation: "Escuela Superior de Administración Pública"
+    affiliation-url: "https://www.esap.edu.co/"
+date: today
+lang: es
+title-block-banner: "#98b6ed"
+
+format:
+  html:
+    page-layout: full
+    fontsize: 14pt
+    toc: true
+    toc-depth: 2
+    toc-location: right
+    number-sections: true
+    code-fold: true
+    code-summary: "Ver código"
+    theme: dark
+    highlight-style: monokai
+    html-math-method: katex
+    smooth-scroll: true
+    link-external-newwindow: true
+    code-overflow: scroll
+    favicon: favicon.ico
+    css: estilos.css
+    
+editor: visual
+
+knitr:
+  opts_chunk:
+    message: false
+    warning: false
+    fig.align: center
+    fig.width: 6
+    fig.height: 6
+    out.width: "70%"
+---
+
+```{=html}
+<div style="position:absolute; top:10px; right:10px;">
+<img src="Logo_esap.png" width="150">
+</div>
+```
+
+```{=html}
+<style>
+body{
+  background-color:#f7f6ed;
+  font-size:130%;
+  text-align:justify;
+}
+</style>
+```
+
+# .Cargar paquetes
+
+```{r}
+ipak <- function(pkg){
+
+  options(repos = c(CRAN="https://cloud.r-project.org"))
+
+  new.pkg <- pkg[!(pkg %in% rownames(installed.packages()))]
+
+  if(length(new.pkg)) install.packages(new.pkg, dependencies = TRUE)
+
+  invisible(lapply(pkg, function(p)
+    suppressPackageStartupMessages(library(p, character.only = TRUE))
+  ))
+}
+
+packages <- c("tidyverse","kableExtra","caret","elasticnet","readxl")
+
+ipak(packages)
+```
+
+# .Presentación de la unidad
+
+Esta unidad estudia dos familias de métodos de aprendizaje automático: el aprendizaje supervisado y el aprendizaje no supervisado. En el primero, los modelos aprenden la relación entre variables predictoras y una respuesta conocida. En el segundo, los algoritmos buscan estructuras, agrupaciones o patrones sin disponer de una respuesta etiquetada.
+
+Se desarrollan los Modelos Lineales Generalizados (GLM), la regresión múltiple, la regresión logística y la construcción de modelos con `caret`. También se estudian el análisis de conglomerados, K-Means, la evaluación de grupos, el Análisis de Componentes Principales (PCA) y estrategias para reducir dimensionalidad.
+
+Los laboratorios utilizan datos simulados contextualizados en la administración pública. No representan registros reales de ciudadanos ni de instituciones.
+
+::: callout-important
+**Objetivo general:** aplicar modelos supervisados y métodos de aprendizaje no supervisado en R para analizar datos, realizar predicciones, identificar agrupaciones y reducir la dimensionalidad, evaluando e interpretando sus resultados.
+:::
+
+**Resultados de aprendizaje**
+
+Al finalizar la unidad, el estudiante estará en capacidad de:
+
+1.  Explicar los fundamentos y usos de los Modelos Lineales Generalizados.
+2.  Diferenciar modelos gaussianos, binomiales y de Poisson según la variable respuesta.
+3.  Construir e interpretar modelos de regresión múltiple y logística.
+4.  Entrenar, comparar y seleccionar modelos mediante `caret`.
+5.  Explicar la validación cruzada y distinguirla de la evaluación con datos de prueba.
+6.  Aplicar técnicas de agrupamiento y K-Means.
+7.  Evaluar agrupamientos mediante criterios internos, como la silueta.
+8.  Aplicar PCA para resumir información y reducir dimensiones.
+9.  Reconocer precauciones para analizar grandes volúmenes de datos.
+
+**Organización temática**
+
+- **2.1. Modelos supervisados en R:** GLM, regresión múltiple, regresión logística, `caret`, entrenamiento, evaluación y validación cruzada.
+- **2.2. Aprendizaje no supervisado:** conglomerados, K-Means, PCA y reducción de dimensionalidad.
+
+# .Modelos supervisados en R
+
+**Fundamentos del aprendizaje supervisado**
+
+El aprendizaje supervisado utiliza observaciones que contienen variables predictoras y una variable respuesta conocida. El algoritmo busca una función que relacione las características de entrada con el resultado:
+
+$$ \mathcal{D}={(x_i,y_i):i=1,\ldots,n}, \qquad \widehat{y}=f(x_1,\ldots,x_p) $$
+
+Si la respuesta es cuantitativa, se plantea un problema de regresión. Si es categórica, se plantea uno de clasificación.
+
+Etapas habituales:
+
+1.  Definir el problema y la variable objetivo.
+2.  Identificar predictores disponibles al momento de predecir.
+3.  Obtener, depurar y explorar los datos.
+4.  Separar datos para entrenamiento y evaluación.
+5.  Ajustar modelos.
+6.  Comparar su desempeño con métricas pertinentes.
+7.  Seleccionar un modelo considerando precisión, interpretabilidad y costos de error.
+8.  Comunicar resultados y monitorear el modelo.
+
+**Modelos Lineales Generalizados (GLM)**
+
+**Definición y componentes**
+
+Los Modelos Lineales Generalizados amplían el modelo lineal clásico para permitir que la respuesta siga distribuciones de la familia exponencial, como la normal, binomial o Poisson.
+
+Un GLM contiene tres componentes:
+
+1.  **Componente aleatorio:** distribución de probabilidad de la respuesta.
+2.  **Componente sistemático:** combinación lineal de predictores.
+3.  **Función de enlace:** relaciona la media de la respuesta con el predictor lineal.
+
+El predictor lineal es:
+
+$$ \eta_i=\beta_0+\beta_1x_{i1}+\cdots+\beta_px_{ip} $$
+
+Y la función de enlace establece:
+
+$$ g(\mu_i)=\eta_i,\qquad \mu_i=E(Y_i\mid X_i) $$
+
+**Familias y enlaces frecuentes**
+
+| Modelo               | Respuesta | Familia en R | Enlace habitual |
+|----------------------|-----------|--------------|-----------------|
+| Regresión lineal     | Continua  | `gaussian`   | Identidad       |
+| Regresión logística  | Binaria   | `binomial`   | Logit           |
+| Regresión de Poisson | Conteo    | `poisson`    | Log             |
+
+La familia debe elegirse según la naturaleza y el mecanismo de generación de la respuesta, no solamente por el ajuste numérico.
+
+**GLM gaussiano**
+
+Es el modelo lineal tradicional con respuesta normal y enlace identidad:
+
+$$ Y_i \sim N(\mu_i,\sigma^2),
+\qquad
+\mu_i = \beta_0 + \sum_{j=1}^{p}\beta_j X_{ij} $$
+
+**GLM de Poisson**
+
+Para conteos no negativos puede considerarse:
+
+$$ Y_i\mid X_i\sim Poisson(\mu_i) $$
+
+$$ \log(\mu_i)
+=
+\beta_0+\sum_{j=1}^{p}\beta_j X_{ij} $$
+
+
+Así:
+
+$$\mu_i =
+\exp\left(
+\beta_0 + \sum_{j=1}^{p}\beta_j X_{ij}
+\right)$$
+
+La exponencial de un coeficiente representa una razón de medias esperadas asociada con un incremento unitario del predictor, manteniendo constantes los demás, bajo el modelo. Poisson supone igualdad entre media y varianza condicional. Si existe sobredispersión, se deben considerar alternativas como cuasi-Poisson o binomial negativa. Para diferentes tiempos de exposición puede ser necesario un término `offset`.
+
+# .Regresión múltiple con GLM
+
+La regresión múltiple modela una respuesta cuantitativa mediante dos o más predictores. Para un GLM gaussiano con enlace identidad:
+
+$$ Y_i=\beta_0+\beta_1X_{i1}+\cdots+\beta_pX_{ip}+\varepsilon_i $$
+
+Cada coeficiente expresa el cambio esperado en la respuesta por una unidad adicional del predictor correspondiente, manteniendo constantes los demás predictores.
+
+**Ejemplo:** una alcaldía desea estudiar el tiempo de resolución de trámites según número de documentos, carga de trabajo, complejidad y experiencia del funcionario:
+
+$$
+\small
+Tiempo_i = \beta_0 + \beta_1 Documentos_i
++ \beta_2 Carga_i + \beta_3 Complejidad_i
++ \beta_4 E_i
+$$
+
+La interpretación requiere considerar unidades, categorías de referencia, confusión y multicolinealidad.
+
+**Laboratorio en R: GLM gaussiano múltiple**
+
+```{r}
+# Instalar una sola vez:
+# install.packages(c("ggplot2", "caret", "cluster"))
+
+library(ggplot2)
+set.seed(2026)
+
+n <- 180
+datos_glm <- data.frame(
+  documentos = sample(1:12, n, replace = TRUE),
+  carga = runif(n, 10, 100),
+  complejidad = sample(
+    c("Baja", "Media", "Alta"), n, replace = TRUE,
+    prob = c(0.35, 0.40, 0.25)
+  ),
+  experiencia = runif(n, 1, 20)
+)
+
+datos_glm$complejidad <- factor(
+  datos_glm$complejidad,
+  levels = c("Baja", "Media", "Alta")
+)
+
+datos_glm$tiempo <- 2 +
+  0.55 * datos_glm$documentos +
+  0.035 * datos_glm$carga +
+  ifelse(datos_glm$complejidad == "Media", 2, 0) +
+  ifelse(datos_glm$complejidad == "Alta", 5, 0) -
+  0.12 * datos_glm$experiencia +
+  rnorm(n, 0, 2.5)
+
+head(datos_glm)
+summary(datos_glm)
+```
+
+```{r}
+ggplot(datos_glm, aes(x = complejidad, y = tiempo)) +
+  geom_boxplot(fill = "steelblue", alpha = 0.7) +
+  labs(
+    title = "Tiempo de resolución según complejidad",
+    x = "Complejidad del trámite",
+    y = "Tiempo (días)"
+  ) +
+  theme_minimal()
+```
+
+**Ajuste del modelo:**
+
+```{r}
+modelo_multiple <- glm(
+  tiempo ~ documentos + carga + complejidad + experiencia,
+  data = datos_glm,
+  family = gaussian(link = "identity")
+)
+
+summary(modelo_multiple)
+```
+
+**Predicción de un nuevo trámite:**
+
+```{r}
+nuevo_tramite <- data.frame(
+  documentos = 6,
+  carga = 65,
+  complejidad = factor(
+    "Media", levels = levels(datos_glm$complejidad)
+  ),
+  experiencia = 8
+)
+
+predict(modelo_multiple, newdata = nuevo_tramite,
+        type = "response")
+```
+
+**Diagnóstico gráfico básico:**
+
+```{r}
+par(mfrow = c(2, 2))
+plot(modelo_multiple)
+par(mfrow = c(1, 1))
+```
+
+Los diagnósticos exploran patrones residuales, normalidad aproximada, homogeneidad de varianza e influencia. Deben complementarse con conocimiento del diseño. El valor p no mide importancia práctica ni demuestra causalidad.
+
+# .Regresión logística
+
+**Concepto**
+
+La regresión logística es un GLM para respuestas binarias:
+
+$$ Y_i\in{0,1}, \qquad p_i=P(Y_i=1\mid X_i) $$
+
+Modela la probabilidad mediante la función logística:
+
+$$ p_i = \frac{1}{1+\exp(-\eta_i)} $$
+
+$$ \eta_i=\beta_0+\beta_1X_{i1}+\cdots+\beta_pX_{ip} $$
+
+La transformación logit es:
+
+$$ \log\left(\frac{p_i}{1-p_i}\right)
+=
+\beta_0+\sum_{j=1}^{p}\beta_j X_{ij} $$
+
+Al exponenciar un coeficiente se obtiene una razón de odds:
+
+$$ OR_j=\exp(\beta_j) $$
+
+Esta representa el cambio multiplicativo en las odds por una unidad adicional del predictor, manteniendo constantes los demás. No equivale a multiplicar la probabilidad por ese valor y no implica causalidad.
+
+**Laboratorio en R: probabilidad de retraso de un trámite**
+
+```{r}
+set.seed(2026)
+n_log <- 500
+
+datos_log <- data.frame(
+  documentos = sample(1:12, n_log, replace = TRUE),
+  carga = runif(n_log, 10, 100),
+  complejidad = sample(
+    c("Baja", "Media", "Alta"), n_log, replace = TRUE,
+    prob = c(0.35, 0.40, 0.25)
+  )
+)
+
+datos_log$complejidad <- factor(
+  datos_log$complejidad,
+  levels = c("Baja", "Media", "Alta")
+)
+
+eta <- -3.5 +
+  0.16 * datos_log$documentos +
+  0.025 * datos_log$carga +
+  ifelse(datos_log$complejidad == "Media", 0.6, 0) +
+  ifelse(datos_log$complejidad == "Alta", 1.2, 0)
+
+prob <- plogis(eta)
+datos_log$retraso <- factor(
+  rbinom(n_log, 1, prob),
+  levels = c(0, 1),
+  labels = c("No", "Si")
+)
+
+table(datos_log$retraso)
+```
+
+```{r}
+modelo_log <- glm(
+  retraso ~ documentos + carga + complejidad,
+  data = datos_log,
+  family = binomial(link = "logit")
+)
+
+summary(modelo_log)
+```
+
+**Razones de odds e intervalos aproximados basados en errores estándar:**
+
+```{r}
+OR <- exp(coef(modelo_log))
+IC <- exp(confint.default(modelo_log))
+
+data.frame(
+  termino = names(OR),
+  OR = as.numeric(OR),
+  inferior = IC[, 1],
+  superior = IC[, 2]
+)
+```
+
+**Predicción para nuevos casos:**
+
+```{r}
+nuevos <- data.frame(
+  documentos = c(3, 8, 11),
+  carga = c(30, 65, 90),
+  complejidad = factor(
+    c("Baja", "Media", "Alta"),
+    levels = levels(datos_log$complejidad)
+  )
+)
+
+predict(modelo_log, newdata = nuevos, type = "response")
+```
+
+**Visualización de probabilidades según carga:**
+
+```{r}
+rejilla <- data.frame(
+  carga = seq(min(datos_log$carga), max(datos_log$carga),
+              length.out = 100),
+  documentos = 6,
+  complejidad = factor(
+    "Media", levels = levels(datos_log$complejidad)
+  )
+)
+
+rejilla$probabilidad <- predict(
+  modelo_log, newdata = rejilla, type = "response"
+)
+
+ggplot(rejilla, aes(carga, probabilidad)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Probabilidad estimada de retraso",
+    subtitle = "Se fijan seis documentos y complejidad media",
+    x = "Carga de trabajo",
+    y = "Probabilidad estimada"
+  ) +
+  theme_minimal()
+```
+
+**Umbral de clasificación**
+
+El modelo genera probabilidades. Para convertirlas en clases se selecciona un umbral. El valor 0.5 es ilustrativo, no una regla universal. Debe elegirse considerando los costos de falsos positivos y falsos negativos.
+
+```{r}
+p_estimadas <- predict(modelo_log, type = "response")
+clases <- ifelse(p_estimadas >= 0.5, "Si", "No")
+
+table(
+  Observado = datos_log$retraso,
+  Predicho = factor(clases, levels = c("No", "Si"))
+)
+```
+
+En una entidad pública, la predicción puede apoyar la revisión de trámites, pero no debe utilizarse para negar derechos ni automatizar decisiones sensibles sin controles.
+
+## .Construcción de modelos con `caret`
+
+**¿Qué es caret?**
+
+`caret` (*Classification And Regression Training*) proporciona una interfaz común para entrenar, ajustar y comparar numerosos algoritmos. Facilita partición de datos, preprocesamiento, remuestreo y búsqueda de hiperparámetros.
+
+La función central es `train()`. Entre sus argumentos:
+
+- `form`: fórmula del modelo.
+- `data`: datos de entrenamiento.
+- `method`: algoritmo.
+- `trControl`: estrategia de remuestreo.
+- `preProcess`: transformaciones.
+- `metric`: métrica de selección.
+
+**División entrenamiento y prueba**
+
+```{r}
+# Instalar si aún no está disponible:
+# install.packages("caret")
+library(caret)
+
+set.seed(2026)
+id_train <- createDataPartition(
+  datos_glm$tiempo, p = 0.75, list = FALSE
+)
+
+entrenamiento <- datos_glm[id_train, ]
+prueba <- datos_glm[-id_train, ]
+```
+
+El conjunto de prueba se reserva para la evaluación final. No debe utilizarse repetidamente para escoger modelos o hiperparámetros.
+
+**Validación cruzada**
+
+En validación cruzada de (k) particiones (*k-fold*), los datos de entrenamiento se dividen en (k) folds. En cada iteración se ajusta el modelo con (k-1) folds y se evalúa con el fold restante:
+
+$$ CV_k=\frac{1}{k}\sum_{j=1}^{k}L_j $$
+
+Donde $(L_j)$ es el error obtenido en el fold (j).
+
+```{r}
+control_cv <- trainControl(
+  method = "cv",
+  number = 5
+)
+```
+
+**Entrenamiento y comparación de modelos**
+
+Se comparan un modelo lineal y Ridge. Ridge penaliza la magnitud de los coeficientes y puede ayudar cuando existe colinealidad o muchos predictores.
+
+```{r}
+set.seed(2026)
+
+modelo_lm <- train(
+  tiempo ~ documentos + carga + complejidad + experiencia,
+  data = entrenamiento,
+  method = "lm",
+  trControl = control_cv,
+  metric = "RMSE"
+)
+
+modelo_ridge <- train(
+  tiempo ~ documentos + carga + complejidad + experiencia,
+  data = entrenamiento,
+  method = "ridge",
+  trControl = control_cv,
+  preProcess = c("center", "scale"),
+  tuneGrid = expand.grid(
+    lambda = c(0.001, 0.01, 0.1, 1, 10)
+  ),
+  metric = "RMSE"
+)
+
+modelo_lm
+modelo_ridge
+```
+
+**Comparación de resultados de validación:**
+
+```{r}
+comparacion_cv <- resamples(
+  list(Lineal = modelo_lm, Ridge = modelo_ridge)
+)
+
+summary(comparacion_cv)
+dotplot(comparacion_cv, metric = "RMSE")
+```
+
+**Evaluación final en prueba**
+
+```{r}
+pred_lm <- predict(modelo_lm, newdata = prueba)
+pred_ridge <- predict(modelo_ridge, newdata = prueba)
+
+metricas <- data.frame(
+  modelo = c("Lineal", "Ridge"),
+  RMSE = c(
+    RMSE(pred_lm, prueba$tiempo),
+    RMSE(pred_ridge, prueba$tiempo)
+  ),
+  MAE = c(
+    MAE(pred_lm, prueba$tiempo),
+    MAE(pred_ridge, prueba$tiempo)
+  ),
+  R2 = c(
+    R2(pred_lm, prueba$tiempo),
+    R2(pred_ridge, prueba$tiempo)
+  )
+)
+
+metricas
+```
+
+- **RMSE:** raíz del error cuadrático medio; penaliza con mayor intensidad errores grandes.
+- **MAE:** error absoluto medio.
+- **R²:** proporción de variabilidad explicada respecto a la media en el conjunto evaluado. Puede ser negativo en prueba.
+
+La selección debe considerar desempeño, estabilidad, interpretabilidad, costo computacional y consecuencias de los errores.
+
+::: callout-warning
+La validación cruzada sirve para comparar configuraciones dentro del entrenamiento. El conjunto de prueba se reserva para una evaluación final independiente. Si se utiliza repetidamente para ajustar el modelo, deja de ser una prueba imparcial.
+:::
+
+# .Métodos de aprendizaje no supervisado
+
+**Fundamentos**
+
+El aprendizaje no supervisado trabaja con datos sin una variable respuesta etiquetada. Busca estructuras, agrupaciones o representaciones que permitan comprender la organización de los datos.
+
+Técnicas frecuentes:
+
+- Análisis de conglomerados (*clustering*).
+- K-Means.
+- Agrupamiento jerárquico.
+- Análisis de Componentes Principales (PCA).
+- Métodos no lineales de reducción de dimensionalidad.
+
+En administración pública pueden utilizarse para explorar perfiles municipales, patrones de gasto, uso de servicios o indicadores territoriales. Los grupos obtenidos son estructuras matemáticas; su interpretación requiere conocimiento del contexto.
+
+**Análisis de conglomerados**
+
+El análisis de conglomerados agrupa observaciones de manera que las unidades de un mismo grupo sean similares y se distingan de las de otros grupos.
+
+**Distancia euclidiana**
+
+Para dos observaciones con (p) variables:
+
+$$ d(x_i,x_j)=\sqrt{\sum_{r=1}^{p}(x_{ir}-x_{jr})^2} $$
+
+Una distancia pequeña representa proximidad en el espacio de variables.
+
+**Estandarización**
+
+Cuando las variables están en escalas diferentes, las de mayor magnitud pueden dominar las distancias. Una transformación común es:
+
+$$ z_{ij}=\frac{x_{ij}-\bar{x}_j}{s_j} $$
+
+La estandarización debe justificarse según las unidades y el significado de las variables.
+
+**Técnicas de agrupamiento**
+
+- **K-Means:** minimiza la variación intragrupo respecto a centroides.
+- **Jerárquico:** construye agrupaciones sucesivas representadas mediante dendrogramas.
+- **DBSCAN:** identifica regiones densas y observaciones aisladas, sin exigir definir previamente el número de grupos.
+
+**Algoritmo K-Means**
+
+K-Means divide (n) observaciones en (K) grupos. Cada grupo se representa mediante un centroide, que es el vector de medias de sus observaciones.
+
+El objetivo es minimizar la suma de cuadrados intragrupo:
+
+$$ SSE=\sum_{k=1}^{K}\sum_{i\in C_k}
+\left\|x_i-\mu_k\right\|^2 $$
+
+Donde $(C_k)$ es el grupo (k), $(x_i)$ una observación y $(\mu_k)$ su centroide.
+
+**Lógica del algoritmo**
+
+1.  Elegir el número de grupos (K).
+2.  Inicializar los centroides.
+3.  Asignar cada observación al centroide más cercano.
+4.  Recalcular los centroides.
+5.  Repetir hasta convergencia o un límite de iteraciones.
+
+K-Means puede converger a mínimos locales; por eso se recomienda utilizar múltiples inicializaciones (`nstart`).
+
+**Laboratorio: agrupamiento de municipios**
+
+Se simulan indicadores de 60 municipios: ingreso, cobertura de servicios y trámites por habitante.
+
+```{r}
+set.seed(2026)
+n_municipios <- 60
+
+municipios <- data.frame(
+  municipio = paste0("Municipio_", 1:n_municipios),
+  ingreso = c(
+    rnorm(20, 1.5, 0.2),
+    rnorm(20, 2.5, 0.25),
+    rnorm(20, 3.5, 0.3)
+  ),
+  cobertura = c(
+    rnorm(20, 55, 5),
+    rnorm(20, 72, 5),
+    rnorm(20, 88, 4)
+  ),
+  tramites = c(
+    rnorm(20, 25, 5),
+    rnorm(20, 45, 7),
+    rnorm(20, 70, 8)
+  )
+)
+
+head(municipios)
+```
+
+**Exploración:**
+
+```{r}
+ggplot(municipios, aes(ingreso, cobertura)) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  labs(
+    title = "Indicadores simulados de municipios",
+    x = "Ingreso promedio (escala ilustrativa)",
+    y = "Cobertura de servicios (%)"
+  ) +
+  theme_minimal()
+```
+
+**Estandarización: el identificador `municipio` se excluye porque no es una medida de similitud.**
+
+```{r}
+variables <- municipios[, c("ingreso", "cobertura", "tramites")]
+datos_escalados <- scale(variables)
+```
+
+**Método del codo**
+
+Se calcula la suma de cuadrados intragrupo para distintos valores de (K):
+
+```{r}
+set.seed(2026)
+
+wss <- sapply(1:10, function(k) {
+  kmeans(datos_escalados, centers = k, nstart = 25)$tot.withinss
+})
+
+tabla_codo <- data.frame(K = 1:10, WSS = wss)
+
+ggplot(tabla_codo, aes(K, WSS)) +
+  geom_line() +
+  geom_point(size = 2) +
+  scale_x_continuous(breaks = 1:10) +
+  labs(
+    title = "Método del codo",
+    x = "Número de grupos (K)",
+    y = "Suma de cuadrados intragrupo"
+  ) +
+  theme_minimal()
+```
+
+El codo es una guía visual, no una regla automática. Puede no existir un punto claramente definido.
+
+**Ajuste de K-Means**
+
+```{r}
+set.seed(2026)
+modelo_kmeans <- kmeans(
+  datos_escalados,
+  centers = 3,
+  nstart = 50
+)
+
+modelo_kmeans
+municipios$grupo <- factor(modelo_kmeans$cluster)
+```
+
+**Visualización:**
+
+```{r}
+ggplot(municipios, aes(ingreso, cobertura, color = grupo)) +
+  geom_point(size = 3, alpha = 0.85) +
+  labs(
+    title = "Agrupamiento municipal con K-Means",
+    x = "Ingreso promedio",
+    y = "Cobertura de servicios (%)",
+    color = "Grupo"
+  ) +
+  theme_minimal()
+```
+
+**Perfil promedio de cada grupo:**
+
+```{r}
+aggregate(
+  cbind(ingreso, cobertura, tramites) ~ grupo,
+  data = municipios,
+  FUN = mean
+)
+```
+
+Las etiquetas de los grupos se asignan después de revisar sus perfiles. El algoritmo no identifica por sí mismo categorías como desarrollo alto o bajo.
+
+# .Evaluación de conglomerados
+
+**Suma de cuadrados intragrupo**
+
+Mide la dispersión respecto a los centroides. Disminuye al aumentar el número de grupos, por lo que no debe utilizarse sola para elegir (K).
+
+**Coeficiente de silueta**
+
+Compara la cohesión de una observación con su grupo y su separación respecto al grupo vecino:
+
+$$ s(i)=\frac{b(i)-a(i)}{\max\{a(i),b(i)\}} $$
+
+Donde (a(i)) es la distancia promedio al propio grupo y (b(i)) la menor distancia promedio a otro grupo.
+
+El coeficiente está entre -1 y 1. Valores cercanos a 1 indican buena asignación; valores cercanos a 0 sugieren solapamiento; valores negativos pueden indicar asignaciones poco adecuadas.
+
+```{r}
+# Instalar una sola vez si es necesario:
+# install.packages("cluster")
+library(cluster)
+
+distancias <- dist(datos_escalados)
+sil <- silhouette(modelo_kmeans$cluster, distancias)
+
+summary(sil)
+plot(sil, main = "Silueta de los grupos K-Means")
+```
+
+La silueta promedio es útil para comparar soluciones, pero debe complementarse con estabilidad, tamaño de grupos e interpretación sustantiva.
+
+# .Análisis de Componentes Principales (PCA)
+
+**Concepto y propósito**
+
+PCA transforma variables posiblemente correlacionadas en componentes no correlacionados, ordenados según la varianza que explican.
+
+Se utiliza para explorar relaciones, resumir información, visualizar datos multivariados y reducir dimensiones. No es, por sí mismo, una técnica de predicción supervisada ni un algoritmo de agrupamiento.
+
+**Fundamento matemático**
+
+Sea (X) una matriz de datos centrada, con (n) observaciones y (p) variables. Su matriz de covarianzas es:
+
+$$ S=\frac{1}{n-1}X^\top X $$
+
+PCA calcula valores propios $(\lambda_j)$ y vectores propios $(v_j)$:
+
+$$ Sv_j=\lambda_jv_j $$
+
+Los componentes son:
+
+$$ PC_j=Xv_j $$
+
+La proporción de varianza explicada por el componente (j) es:
+
+$$ PVE_j=\frac{\lambda_j}{\sum_{r=1}^{p}\lambda_r} $$
+
+La varianza acumulada hasta el componente (m) es:
+
+$$ PVE_{\text{acumulada}}
+=
+\sum_{j=1}^{m}PVE_j $$
+
+
+**Laboratorio PCA con R**
+
+```{r}
+set.seed(2026)
+n_pca <- 100
+
+indicadores <- data.frame(
+  ingreso = rnorm(n_pca, 2.5, 0.7),
+  cobertura = rnorm(n_pca, 70, 12),
+  educacion = rnorm(n_pca, 65, 10),
+  conectividad = rnorm(n_pca, 60, 15),
+  tramites = rnorm(n_pca, 45, 12)
+)
+
+# Introducir correlaciones en algunas variables
+indicadores$cobertura <- 40 +
+  12 * indicadores$ingreso + rnorm(n_pca, 0, 5)
+indicadores$educacion <- 35 +
+  10 * indicadores$ingreso + rnorm(n_pca, 0, 6)
+indicadores$conectividad <- 30 +
+  11 * indicadores$ingreso + rnorm(n_pca, 0, 8)
+
+round(cor(indicadores), 2)
+```
+
+Ajuste de PCA:
+
+```{r}
+pca <- prcomp(
+  indicadores,
+  center = TRUE,
+  scale. = TRUE
+)
+
+summary(pca)
+```
+
+La opción `center = TRUE` resta la media y `scale. = TRUE` divide por la desviación estándar. Esto es frecuente cuando las variables tienen escalas diferentes.
+
+Varianza explicada:
+
+```{r}
+varianza <- pca$sdev^2
+pve <- varianza / sum(varianza)
+
+tabla_pca <- data.frame(
+  Componente = paste0("PC", seq_along(pve)),
+  Varianza = pve,
+  Acumulada = cumsum(pve)
+)
+
+tabla_pca
+```
+
+Gráfico de sedimentación:
+
+```{r}
+ggplot(tabla_pca, aes(Componente, Varianza)) +
+  geom_col(fill = "steelblue") +
+  labs(
+    title = "Varianza explicada por componente",
+    x = "Componente principal",
+    y = "Proporción de varianza"
+  ) +
+  theme_minimal()
+```
+
+Gráfico acumulado:
+
+```{r}
+ggplot(
+  tabla_pca,
+  aes(x = seq_along(Acumulada), y = Acumulada)
+) +
+  geom_line(group = 1) +
+  geom_point(size = 2) +
+  scale_x_continuous(
+    breaks = seq_along(pve),
+    labels = paste0("PC", seq_along(pve))
+  ) +
+  labs(
+    title = "Varianza explicada acumulada",
+    x = "Componentes incluidos",
+    y = "Proporción acumulada"
+  ) +
+  theme_minimal()
+```
+
+Cargas de las variables:
+
+```{r}
+round(pca$rotation, 3)
+```
+
+Las cargas son los coeficientes que combinan las variables originales para formar cada componente. El signo depende de la orientación matemática del vector propio; invertir todos los signos de un componente no cambia su significado.
+
+Proyección de observaciones:
+
+```{r}
+scores <- as.data.frame(pca$x)
+
+ggplot(scores, aes(PC1, PC2)) +
+  geom_point(alpha = 0.75) +
+  labs(
+    title = "Observaciones en los dos primeros componentes",
+    x = "Primer componente principal",
+    y = "Segundo componente principal"
+  ) +
+  theme_minimal()
+```
+
+La proximidad en este plano refleja similitud respecto a la información retenida por los componentes mostrados, no necesariamente en todas las dimensiones originales.
+
+**Reducción de dimensionalidad en grandes volúmenes de datos**
+
+La dimensionalidad corresponde al número de variables que describen cada observación. Cuando existen cientos o miles de características, el análisis puede requerir más memoria, tiempo y recursos computacionales.
+
+La reducción de dimensionalidad busca representar los datos con menos variables o componentes, conservando la información relevante para el objetivo.
+
+**Métodos frecuentes**
+
+| Método | Característica | Uso |
+|------------------------|------------------------|------------------------|
+| PCA | Transformación lineal basada en varianza | Variables cuantitativas |
+| Selección de variables | Conserva variables originales relevantes | Interpretabilidad |
+| SVD | Descomposición matricial | Matrices grandes o dispersas |
+| UMAP | Proyección no lineal | Exploración y visualización |
+| t-SNE | Preserva vecindades locales | Visualización exploratoria |
+
+PCA es una referencia lineal. UMAP y t-SNE se utilizan principalmente para exploración visual; las distancias globales en sus mapas no deben interpretarse como si preservaran todas las relaciones originales.
+
+**Ejemplo de reducción de 10 variables a componentes**
+
+```{r}
+set.seed(2026)
+n_big <- 1000
+p_big <- 10
+
+latentes <- matrix(rnorm(n_big * 3), nrow = n_big, ncol = 3)
+cargas <- matrix(rnorm(3 * p_big), nrow = 3, ncol = p_big)
+
+X_grande <- latentes %*% cargas +
+  matrix(rnorm(n_big * p_big, sd = 0.4),
+         nrow = n_big, ncol = p_big)
+
+X_grande <- as.data.frame(X_grande)
+names(X_grande) <- paste0("Variable_", 1:p_big)
+
+dim(X_grande)
+```
+
+```{r}
+pca_grande <- prcomp(X_grande, center = TRUE, scale. = TRUE)
+pve_grande <- pca_grande$sdev^2 / sum(pca_grande$sdev^2)
+acumulada <- cumsum(pve_grande)
+
+numero_componentes <- which(acumulada >= 0.80)[1]
+numero_componentes
+```
+
+Matriz reducida:
+
+```{r}
+datos_reducidos <- as.data.frame(
+  pca_grande$x[
+    , seq_len(numero_componentes),
+    drop = FALSE
+  ]
+)
+
+dim(datos_reducidos)
+head(datos_reducidos)
+```
+
+El umbral de 80 % es ilustrativo, no una regla universal. Se debe informar la varianza conservada y justificar el número de componentes.
+
+**Consideraciones para Big Data**
+
+El ejemplo de mil observaciones es una demostración didáctica, no un procesamiento Big Data a escala productiva. Para millones de filas o miles de columnas conviene considerar:
+
+- Lectura por bloques y procesamiento incremental.
+- Formatos columnares y almacenamiento eficiente.
+- Muestreo representativo para exploración.
+- PCA incremental o aproximado.
+- Matrices dispersas cuando abundan los ceros.
+- Memoria disponible y costo computacional.
+- Reproducibilidad y control de versiones.
+- Validación de la información que se pierde.
+
+Un PCA sobre una muestra no necesariamente reproduce exactamente los componentes de toda la población. Deben examinarse representatividad y estabilidad.
+
+# .Comparación entre métodos supervisados y no supervisados
+
+| Característica | Supervisado | No supervisado |
+|------------------------|------------------------|------------------------|
+| Respuesta conocida | Sí | No |
+| Propósito | Predecir una respuesta | Descubrir estructura |
+| Métodos | GLM, regresión logística | K-Means, PCA |
+| Evaluación | Métricas frente a respuestas observadas | Cohesión, separación, estabilidad e interpretación |
+| Resultado | Predicción o clasificación | Grupos o componentes |
+
+Un mismo proyecto puede combinar ambos enfoques. Por ejemplo, se pueden identificar grupos de municipios mediante K-Means y después utilizar un modelo supervisado para predecir una variable de interés.
+
+# .Buenas prácticas y consideraciones éticas
+
+**Calidad y representatividad**
+
+Los datos pueden contener errores, duplicados, omisiones o sesgos de selección. Un algoritmo complejo no corrige automáticamente una base deficiente.
+
+**Interpretabilidad y equidad**
+
+Un modelo con buen desempeño puede ser difícil de explicar. Los datos históricos pueden reflejar desigualdades y el algoritmo reproducirlas o amplificarlas. Se recomienda evaluar errores por grupos relevantes, cuando sea legal y metodológicamente apropiado.
+
+**Privacidad y supervisión**
+
+Los datos personales deben tratarse para finalidades legítimas, con medidas de seguridad y acceso limitado. En Colombia debe considerarse la Ley 1581 de 2012. Las decisiones que afecten a personas deben contar con mecanismos de revisión humana, corrección y auditoría.
+
+# .Ejercicios resueltos
+
+**Ejercicio resuelto 1. Regresión múltiple**
+
+Una entidad estima el tiempo de resolución mediante:
+
+$$ \widehat{Y}=3+0.5X_1+0.04X_2-0.2X_3 $$
+
+Donde $(X_1)$ es número de documentos, $(X_2)$ carga diaria y $(X_3)$ años de experiencia. Para 6 documentos, carga 50 y experiencia 5:
+
+$$ \widehat{Y}=3+0.5(6)+0.04(50)-0.2(5) =3+3+2-1=7 $$
+
+El tiempo estimado es 7 unidades de tiempo. La interpretación supone que las unidades y rangos corresponden al conjunto de ajuste.
+
+**Ejercicio resuelto 2. Razón de odds**
+
+Si un coeficiente logístico es 0.7:
+
+$$ OR=\exp(0.7)\approx2.01 $$
+
+Manteniendo constantes los demás predictores, las odds estimadas del evento se multiplican aproximadamente por 2.01 ante un incremento unitario del predictor. No significa que la probabilidad se duplique.
+
+**Ejercicio resuelto 3. Silueta**
+
+Una solución tiene silueta promedio de 0.62. El valor positivo y relativamente cercano a 1 sugiere cohesión y separación razonables. Deben revisarse también estabilidad, tamaño e interpretación de los grupos.
+
+**Ejercicio resuelto 4. PCA**
+
+Si los primeros tres componentes explican 45 %, 30 % y 15 % de la varianza:
+
+45% + 30% + 15% = 90%
+
+Los tres componentes resumen el 90 % de la variabilidad total de las variables estandarizadas. El 10 % restante no queda representado por esos tres componentes.
+
+# .Taller de aplicación
+
+**Ejercicio 1. Selección de un GLM**
+
+Una entidad registra el número de solicitudes recibidas por dependencia y día.
+
+a.  ¿Qué distribución podría considerarse para modelar el conteo?
+
+b.  Escriba un modelo de Poisson con dos predictores.
+
+c.  Explique la función de enlace.
+
+d.  ¿Qué problema puede aparecer si la varianza condicional es mucho mayor que la media?
+
+**Ejercicio 2. Regresión múltiple**
+
+Una alcaldía estudia el tiempo de resolución según documentos, carga de trabajo y experiencia.
+
+a.  Escriba el modelo.
+
+b.  Interprete los coeficientes.
+
+c.  Proponga dos diagnósticos.
+
+d.  Explique qué significa mantener constantes los demás predictores.
+
+**Ejercicio 3. Regresión logística**
+
+Un modelo estima la probabilidad de retraso.
+
+a.  ¿Por qué se utiliza una función logística?
+
+b.  Interprete un coeficiente de 0.4 mediante su razón de odds.
+
+c.  Calcule la probabilidad cuando el predictor lineal es (\eta=1).
+
+d.  Explique por qué el umbral 0.5 no siempre es óptimo.
+
+**Ejercicio 4. Validación cruzada con caret**
+
+Se comparan dos modelos mediante validación cruzada de 10 folds.
+
+a.  Explique cómo se forman los folds.
+
+b.  ¿Qué función configura el remuestreo?
+
+c.  ¿Qué representa el RMSE promedio?
+
+d.  ¿Por qué se conserva un conjunto de prueba independiente?
+
+**Ejercicio 5. K-Means**
+
+Se agrupan municipios según ingreso, cobertura y conectividad.
+
+a.  ¿Por qué estandarizar?
+
+b.  Explique el centroide.
+
+c.  Describa el método del codo.
+
+d.  ¿Qué aporta la silueta?
+
+e.  Mencione dos limitaciones de K-Means.
+
+**Ejercicio 6. PCA**
+
+Una base contiene 30 indicadores socioeconómicos.
+
+a.  Explique el propósito de PCA.
+
+b.  ¿Por qué puede ser necesaria la estandarización?
+
+c.  Si dos componentes explican 72 %, interprete el resultado.
+
+d.  ¿Qué representan las cargas?
+
+e.  ¿Por qué reducir dimensiones facilita el análisis?
+
+**Ejercicio 7. Aplicación integral**
+
+Una gobernación dispone de indicadores de 200 municipios: cobertura educativa, salud, ingreso, conectividad, inversión y número de trámites.
+
+Proponga una estrategia que incluya:
+
+a.  Un procedimiento no supervisado para identificar perfiles.
+
+b.  Una técnica para visualizar y resumir indicadores.
+
+c.  Un modelo supervisado para predecir inversión del siguiente año.
+
+d.  Una estrategia de evaluación para cada procedimiento.
+
+e.  Dos precauciones éticas o metodológicas.
+
+# .Solucionario orientador
+
+**Ejercicio 1**
+
+a.  Poisson puede ser un punto de partida para una respuesta de conteo.
+
+b.  
+
+$$ Y_i\sim Poisson(\mu_i),\qquad \log(\mu_i)=\beta_0+\beta_1X_{i1}+\beta_2X_{i2} $$
+
+c.  El enlace logarítmico relaciona la media esperada del conteo con el predictor lineal y garantiza una media positiva.
+
+d.  Puede existir sobredispersión; se deben evaluar alternativas como cuasi-Poisson o binomial negativa.
+
+**Ejercicio 2**
+
+a.  
+
+$$ Y_i=\beta_0+\beta_1Documentos_i+ \beta_2Carga_i+\beta_3Experiencia_i+\varepsilon_i $$
+
+b.  Cada coeficiente expresa el cambio esperado por unidad del predictor, manteniendo constantes los otros.
+
+c.  Residuos frente a ajustados, gráfico Q-Q, heterocedasticidad, influencia y multicolinealidad.
+
+d.  Interpretar la asociación parcial de un predictor suponiendo fijos los demás predictores del modelo.
+
+**Ejercicio 3**
+
+a.  La función logística transforma cualquier predictor lineal en una probabilidad entre 0 y 1.
+
+b.  
+
+$$ OR=\exp(0.4)\approx1.49 $$
+
+Las odds se multiplican aproximadamente por 1.49 por cada unidad adicional del predictor, manteniendo constantes los demás.
+
+c.  
+
+$$ p=\frac{1}{1+\exp(-1)}\approx0.7311 $$
+
+La probabilidad es aproximadamente 73.11 %.
+
+d.  El umbral depende del costo de errores, prevalencia y finalidad de la clasificación.
+
+**Ejercicio 4**
+
+a.  Se dividen los datos en diez subconjuntos. En cada iteración se entrena con nueve y se evalúa con el restante.
+
+b.  `trainControl(method = "cv", number = 10)`.
+
+c.  Resume el error promedio de las particiones de validación.
+
+d.  Permite una evaluación final menos sesgada del modelo seleccionado. No debe intervenir en la selección de hiperparámetros.
+
+**Ejercicio 5**
+
+a.  Para evitar que una variable de escala mayor domine las distancias.
+
+b.  Es el vector de medias de las observaciones asignadas al grupo.
+
+c.  Compara la suma de cuadrados intragrupo para distintos K y busca dónde la mejora marginal disminuye.
+
+d.  Compara cohesión interna y separación respecto a otros grupos.
+
+e.  Requiere definir K, es sensible a la escala y a valores extremos, y favorece grupos compactos aproximadamente esféricos.
+
+**Ejercicio 6**
+
+a.  Transformar variables originales en componentes no correlacionados ordenados por varianza explicada.
+
+b.  Las variables pueden tener unidades y escalas diferentes.
+
+c.  Los dos componentes resumen el 72 % de la variabilidad; el 28 % restante no queda representado en ellos.
+
+d.  Son coeficientes que combinan variables originales para formar componentes.
+
+e.  Reduce dimensiones, facilita visualización y puede disminuir redundancia y costo computacional.
+
+**Ejercicio 7**
+
+Una estrategia posible es estandarizar indicadores y aplicar K-Means para explorar perfiles; utilizar PCA para visualizar patrones y resumir variables; y construir una regresión para predecir inversión futura si existe una respuesta histórica bien definida. Para K-Means se revisan silueta, estabilidad y perfiles; para PCA, varianza explicada y cargas; para regresión, validación temporal, MAE, RMSE y comparación con un modelo de referencia. Se deben revisar calidad, representatividad, privacidad, sesgos y supervisión institucional.
+
+# .Glosario
+
+| Término | Definición |
+|------------------------------------|------------------------------------|
+| GLM | Modelo que relaciona una respuesta de la familia exponencial con predictores mediante una función de enlace |
+| Función de enlace | Relaciona la media de la respuesta con el predictor lineal |
+| Regresión múltiple | Modelo con una respuesta y varios predictores |
+| Regresión logística | GLM para respuestas binarias |
+| Odds | Cociente entre probabilidad de evento y probabilidad de no evento |
+| caret | Paquete de R para entrenamiento y evaluación |
+| Validación cruzada | Procedimiento de remuestreo para evaluar modelos |
+| Hiperparámetro | Configuración elegida antes o durante el ajuste |
+| Clustering | Agrupamiento de observaciones según similitud |
+| K-Means | Algoritmo de agrupamiento basado en centroides |
+| Centroide | Vector de medias de las observaciones de un grupo |
+| Silueta | Medida de cohesión y separación |
+| PCA | Técnica lineal de reducción de dimensionalidad |
+| Componente principal | Combinación lineal de variables originales |
+| Carga | Coeficiente de una variable original en un componente |
+| Varianza explicada | Proporción de variabilidad representada |
+
+# .Conclusiones
+
+Los modelos supervisados permiten estimar respuestas cuantitativas o clasificar observaciones cuando se dispone de ejemplos históricos etiquetados. Los GLM amplían la regresión lineal mediante distintas distribuciones y funciones de enlace. La regresión múltiple incorpora varios predictores y la regresión logística modela probabilidades para resultados binarios.
+
+`caret` facilita el entrenamiento y comparación de modelos mediante remuestreo y validación cruzada. La evaluación final debe realizarse con datos independientes y considerar métricas, interpretabilidad y consecuencias de los errores.
+
+Los métodos no supervisados permiten explorar estructuras sin una variable objetivo conocida. K-Means agrupa observaciones mediante centroides y PCA resume variabilidad mediante componentes principales. Ambas técnicas requieren decisiones metodológicas y una interpretación cuidadosa.
+
+En la administración pública, estas herramientas pueden apoyar el análisis territorial, la planeación y la gestión de servicios. Su uso responsable exige calidad de datos, transparencia, protección de información personal, evaluación de sesgos y supervisión humana.
+
+# ,Referencias bibliográficas
+
+Referencias presentadas en estilo APA 7. Se recomienda consultar las ediciones originales al elaborar trabajos académicos.
+
+Bishop, C. M. (2006). *Pattern recognition and machine learning*. Springer.
+
+Breiman, L. (2001). Statistical modeling: The two cultures. *Statistical Science, 16*(3), 199–231. https://doi.org/10.1214/ss/1009213726
+
+Hastie, T., Tibshirani, R., & Friedman, J. (2009). *The elements of statistical learning: Data mining, inference, and prediction* (2nd ed.). Springer. https://doi.org/10.1007/978-0-387-84858-7
+
+James, G., Witten, D., Hastie, T., Tibshirani, R., & Taylor, J. (2023). *An introduction to statistical learning: With applications in R* (2nd ed.). Springer. https://www.statlearning.com/
+
+Kassambara, A. (2017). *Practical guide to cluster analysis in R: Unsupervised machine learning*. STHDA.
+
+Kuhn, M. (2008). Building predictive models in R using the caret package. *Journal of Statistical Software, 28*(5), 1–26. https://doi.org/10.18637/jss.v028.i05
+
+Kuhn, M., & Johnson, K. (2013). *Applied predictive modeling*. Springer. https://doi.org/10.1007/978-1-4614-6849-3
+
+McCullagh, P., & Nelder, J. A. (1989). *Generalized linear models* (2nd ed.). Chapman and Hall.
+
+Wickham, H., & Grolemund, G. (2017). *R for data science: Import, tidy, transform, visualize, and model*. O'Reilly Media. https://r4ds.hadley.nz/
+
+## Recursos digitales
+
+- R Project: https://www.r-project.org/
+- Documentación de `caret`: https://topepo.github.io/caret/
+- Documentación de `ggplot2`: https://ggplot2.tidyverse.org/
+- Documentación de `cluster`: https://cran.r-project.org/package=cluster
+- Quarto: https://quarto.org/
+- An Introduction to Statistical Learning: https://www.statlearning.com/
+
+
+Los datos de los laboratorios son simulados y tienen finalidad didáctica. Antes de aplicar los procedimientos a datos institucionales, verifique la procedencia, autorización, calidad, confidencialidad y pertinencia de las variables.
